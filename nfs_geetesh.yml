@@ -1,0 +1,55 @@
+---
+- name: " NFS server"
+  hosts: server1
+  tasks:
+  - name: "Installing nfs package"
+    yum: 
+     name: nfs-utils
+     state: present
+  - name: "create shared directory"
+    file:
+     path: /nfs
+     state: directory
+     mode: 0755
+  - name: "exports entry"
+    lineinfile:
+     line: "/nfs 172.25.0.0/24(ro,sync)"
+     path: /etc/exports
+     state: present
+  - name: "adding nfs service in firewall"
+    firewalld: 
+     service: nfs
+     state: enabled
+     permanent: yes
+     immediate: yes
+  - name: "starting nfs-server"
+    service:
+     name: nfs-server
+     state: restarted
+     enabled: yes
+
+- name: "complete NFS client setup"
+  hosts: client1
+  tasks:
+  - name: "create mount point"
+    file:
+     path: /mnt/nfs
+     state: directory
+     mode: 0755
+  - name: "Installing libselinux-python package"
+    yum: 
+     name: [ 'libselinux-python', 'nfs-utils']
+     state: present
+  - name: "mounting directory at client"   
+    mount:
+     backup: yes
+     src: 172.25.0.0/24:/nfs
+     path: /mnt/nfs
+     fstype: nfs
+     opts: defaults
+     state: mounted
+  - name: "checking df -h output"
+    command: df -h
+    register: cmd
+  - debug:
+     var: cmd
